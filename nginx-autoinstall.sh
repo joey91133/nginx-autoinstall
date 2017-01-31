@@ -13,12 +13,13 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 # Variables
-NGINX_VER=1.11.8
+NGINX_VER=1.11.9
 LIBRESSL_VER=2.4.4
 OPENSSL_VER=1.0.2h
 NPS_VER=1.12.34.2
 HEADERMOD_VER=0.32
 TESTCOOKIE_VER=b20b5fde6516303eaec6e83f4154db5c03b7e609
+UPLOADPROGRESS_VER=0.9.2
 
 clear
 echo ""
@@ -55,6 +56,9 @@ case $OPTION in
 		done
 		while [[ $TESTCOOKIE !=  "y" && $TESTCOOKIE != "n" ]]; do
 			read -p "       TestCookie [y/n]: " -e TESTCOOKIE
+		done
+		while [[ $UPLOADPROGRESS !=  "y" && $UPLOADPROGRESS != "n" ]]; do
+			read -p "       UploadProgress [y/n]: " -e UPLOADPROGRESS
 		done
 		echo ""
 		echo "Choose your OpenSSL implementation :"
@@ -242,7 +246,8 @@ case $OPTION in
 			fi
 		fi
     
-    if [[ "$TESTCOOKIE" = 'y' ]]; then
+    		# Test Cookie
+   		 if [[ "$TESTCOOKIE" = 'y' ]]; then
 			cd /usr/local/src
 			# Cleaning up in case of update
 			rm -r testcookie-nginx-module-${TESTCOOKIE_VER} &>/dev/null 
@@ -258,7 +263,26 @@ case $OPTION in
 				echo -e "       Downloading ngx_testcookie        [${CRED}FAIL${CEND}]"
 				exit 1
 			fi
-    fi
+		fi
+		
+		# Upload Progress
+		if [[ "$UPLOADPROGRESS" = 'y' ]]; then
+			cd /usr/local/src
+			# Cleaning up in case of update
+			rm -r nginx-upload-progress-module-${UPLOADPROGRESS_VER} &>/dev/null 
+			echo -ne "       Downloading ngx-upload-progress       [..]\r"
+			wget https://github.com/masterzen/nginx-upload-progress-module/archive/${UPLOADPROGRESS_VER}.zip &>/dev/null
+			unzip nginx-upload-progress-module-${UPLOADPROGRESS_VER}.zip &>/dev/null 
+			rm nginx-upload-progress-module-${UPLOADPROGRESS_VER}.zip
+		        
+			if [ $? -eq 0 ]; then
+				echo -ne "       Downloading ngx-upload-progress       [${CGREEN}OK${CEND}]\r"
+				echo -ne "\n"
+			else
+				echo -e "       Downloading ngx-upload-progress        [${CRED}FAIL${CEND}]"
+				exit 1
+			fi
+		fi
 
 		# LibreSSL
 		if [[ "$LIBRESSL" = 'y' ]]; then
@@ -390,8 +414,8 @@ case $OPTION in
 		--http-client-body-temp-path=/var/cache/nginx/client_temp \
 		--http-proxy-temp-path=/var/cache/nginx/proxy_temp \
 		--http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
-		--user=nginx \
-                --group=nginx \
+		--user=www-data \
+                --group=wwww-data \
                 --with-cc-opt=-Wno-deprecated-declarations"
 
 
@@ -433,9 +457,15 @@ case $OPTION in
 		if [[ "$HEADERMOD" = 'y' ]]; then
 			NGINX_MODULES=$(echo $NGINX_MODULES; echo "--add-module=/usr/local/src/headers-more-nginx-module-${HEADERMOD_VER}")
 		fi
-    # Test Cookie
+		
+    		# Test Cookie
 		if [[ "$TESTCOOKIE" = 'y' ]]; then
 			NGINX_MODULES=$(echo $NGINX_MODULES; echo "--add-module=/usr/local/src/testcookie-nginx-module-${TESTCOOKIE_VER}")
+		fi
+		
+		# Upload Progress
+		if [[ "$UPLOADPROGRESS" = 'y' ]]; then
+			NGINX_MODULES=$(echo $NGINX_MODULES; echo "--add-module=/usr/local/src/nginx-upload-progress-module-${UPLOADPROGRESS_VER}")
 		fi
 
 		# GeoIP
